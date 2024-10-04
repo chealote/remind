@@ -1,0 +1,29 @@
+This is the remind file, it gets parsed everytime `remind` is ran.
+
+What is the benefit of running `remind.js` instead of just reading this file? I
+don't know.
+
+Actually, being serious, is just the date information. This file contains all
+your important dates, and `remind.js` queries this file for upcoming dates and
+prints those.
+
+`remind.js` is currently lacking "cool" features but it does what I need for
+now. The idea is to just print upcoming dates for the next 7 days.
+
+The date formats are:
+
+- day/month/year: to repeat a single time
+- day/month: to repeat annually
+- day: to repeat monthly
+- weekday: like "tue" or "friday", to repeat all weeks at that day
+
+This file ignores all these comments, it begins parsing after the "separator"
+
+
+separator:#
+
+thu      # this event runs on thursdays
+friday   # this event runs on fridays
+sun      # it's sunday
+12 25    # crismas
+2025 1 1 # a new year, so full opportunities and all that
