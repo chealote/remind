@@ -1,8 +1,7 @@
 const fs = require("fs");
 const path = require("path");
-
 const { env, argv } = require("process");
-const { exec } = require("child_process");
+const { spawn } = require("child_process");
 
 const reSeparatorDefinitionLine = /^separator:.{1,3}$/;
 const reValidWeekday = /^[A-Za-z]{2,}$/;
@@ -14,6 +13,9 @@ const dateOptions = {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2
 
 const currentEvents = [];
 const now = new Date();
+now.setHours(0);
+now.setMinutes(0);
+
 const daysInTheFuture = 4;
 const upto = new Date();
 const printDebug = false;
@@ -155,7 +157,13 @@ getRemindFile(function(err, filepath) {
   }
 
   if (args.editRemindFile) {
-    console.log(`run this by yourself man: ${env.EDITOR} ${filepath}`);
+    const editor = env.EDITOR || "vim";
+    const child = spawn(editor, [filepath], {
+      stdio: "inherit",
+    });
+    child.on("exit", function() {
+      console.log("remind file updated");
+    });
     return;
   }
 
