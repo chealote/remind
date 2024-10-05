@@ -12,14 +12,7 @@ const weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday", "satur
 const dateOptions = {year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'};
 
 const currentEvents = [];
-const now = new Date();
-now.setHours(0);
-now.setMinutes(0);
-
-const daysInTheFuture = 4;
-const upto = new Date();
 const printDebug = false;
-upto.setDate(now.getDate()+daysInTheFuture);
 
 function debug() {
   if (!printDebug) {
@@ -90,7 +83,7 @@ function parseDateFromNumbers(date) {
   const parsedDate = new Date(date);
 
   if (date.match(reValidMonthday)) {
-    parsedDate.setYear(now.getUTCFullYear());
+    parsedDate.setYear(new Date().getUTCFullYear());
   }
 
   return parsedDate;
@@ -108,7 +101,7 @@ function parseValidDate(date) {
   return undefined;
 }
 
-function getCurrentEventsFromFile(contents, printAll, cb) {
+function getCurrentEventsFromFile(contents, cb) {
   const separator = contents[0].split(":")[1];
   const lines = contents.splice(1);
 
@@ -119,7 +112,7 @@ function getCurrentEventsFromFile(contents, printAll, cb) {
     const date = line.split(separator)[0].replace(/^\s+|\s+$/, "");
     const description = line.split(separator)[1].replace(/^\s+|\s+$/, "");
     const validDate = parseValidDate(date);
-    if (!validDate || (!printAll && (validDate < now || upto < validDate))) {
+    if (!validDate) {
       continue;
     }
     currentEvents.push({description, date: validDate});
@@ -133,21 +126,37 @@ function getCurrentEventsFromFile(contents, printAll, cb) {
 }
 
 function parseArgs() {
-  if (argv.length < 3) {
-    return [];
-  }
-
-  const args = {};
+  const args = {
+    editRemindFile: false,
+    printAll: false,
+    daysInTheFuture: 7,
+  };
 
   if (argv[2] === "e") {
     args.editRemindFile = true;
+    // this arg opens the editor and quits
+    return args;
   }
 
   if (argv[2] === "a") {
     args.printAll = true;
+    // print all, ignore other filters
+    return args;
+  }
+
+  if (argv[2] === "d") {
+    const days = Number(argv[3]);
+    if (isNaN(days)) {
+      throw "next argument is NaN";
+    }
+    args.daysInTheFuture = days;
   }
 
   return args;
+}
+
+function printFormatDate(date) {
+  return date.toLocaleString("en-US", dateOptions);
 }
 
 getRemindFile(function(err, filepath) {
@@ -178,15 +187,24 @@ getRemindFile(function(err, filepath) {
       return;
     }
 
-    getCurrentEventsFromFile(contents, args.printAll, function(err, events) {
+    getCurrentEventsFromFile(contents, function(err, events) {
       if (err) {
         console.log("error reading events from file");
         return;
       }
 
-      console.log("today:", now.toLocaleString());
+      const now = new Date();
+      now.setHours(0);
+      now.setMinutes(0);
+      const upto = new Date();
+      upto.setDate(now.getDate()+args.daysInTheFuture);
+
+      console.log("today:", printFormatDate(now));
       for (const ev of events) {
-        console.log(`event: ${ev.description} (happens on ${ev.date.toLocaleString("en-US", dateOptions)})`);
+        if (!args.printAll && (ev.date < now || upto < ev.date)) {
+          continue;
+        }
+        console.log(`event: ${ev.description} (happens on ${printFormatDate(ev.date)})`);
       }
     });
   });
