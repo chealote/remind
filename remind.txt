@@ -27,3 +27,4 @@ friday   # this event runs on fridays
 sun      # it's sunday
 12 25    # crismas
 2025 1 1 # a new year, so full opportunities and all that
+tue,thu  # swimming classes or something

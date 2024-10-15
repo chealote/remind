@@ -4,7 +4,7 @@ const { env, argv } = require("process");
 const { spawn } = require("child_process");
 
 const reSeparatorDefinitionLine = /^separator:.{1,3}$/;
-const reValidWeekday = /^[A-Za-z]{2,}$/;
+const reValidWeekday = /^[A-Za-z]{2,}(,[A-Za-z]{2,})*$/;
 const reValidDay = /^\d{1,2}$/;
 const reValidMonthday = /^\d{1,2} \d{1,2}$/;
 const reValidFulldate = /^\d{4} \d{1,2} \d{1,2}$/;
@@ -59,16 +59,15 @@ function readFileIgnoringAllLinesUntilSeparator(filepath, cb) {
 }
 
 function parseDateFromWeekday(date) {
-  const weekday = weekdays.filter(d => d.indexOf(date.toLowerCase()) >= 0)[0];
-  if (!weekday) {
-    throw new `no day found for ${date}`;
-  }
-  const day = weekdays.indexOf(weekday) + 1;
-  const weekDate = new Date();
-  weekDate.setHours(0);
-  weekDate.setMinutes(0);
-  weekDate.setDate(weekDate.getDate() + (day - weekDate.getDay()));
-  return weekDate;
+  const pieces = date.split(",");
+  const dayIndexes = pieces.map(piece => weekdays.findIndex(w => w.includes(piece.toLowerCase())) + 1);
+  const weekDates = dayIndexes.map(dayIndex => {
+    const weekDate = new Date();
+    weekDate.setUTCHours(0,0,0,0);
+    weekDate.setDate(weekDate.getDate() + (dayIndex - weekDate.getDay()));
+    return weekDate;
+  });
+  return weekDates;
 }
 
 function parseDateFromNumbers(date) {
@@ -89,11 +88,11 @@ function parseDateFromNumbers(date) {
   return parsedDate;
 }
 
-function parseValidDate(date) {
+function parseValidDates(date) {
   if (date.match(reValidWeekday)) {
     return parseDateFromWeekday(date);
   } else if (date.match(reValidMonthday) || date.match(reValidFulldate) || date.match(reValidDay)) {
-    return parseDateFromNumbers(date);
+    return [ parseDateFromNumbers(date) ];
   } else {
     // return this error?
     console.error(`invalid date format: ${date}`);
@@ -111,11 +110,11 @@ function getCurrentEventsFromFile(contents, cb) {
     }
     const date = line.split(separator)[0].replace(/^\s+|\s+$/, "");
     const description = line.split(separator)[1].replace(/^\s+|\s+$/, "");
-    const validDate = parseValidDate(date);
-    if (!validDate) {
+    const validDates = parseValidDates(date);
+    if (!validDates || validDates.length === 0) {
       continue;
     }
-    currentEvents.push({description, date: validDate});
+    validDates.map(date => currentEvents.push({description, date: date}));
   }
 
   const sortedEvents = currentEvents.sort(e => {
@@ -131,6 +130,12 @@ function parseArgs() {
     printAll: false,
     daysInTheFuture: 7,
   };
+
+  if (argv[2] === "h") {
+    args.printHelp = true;
+    // this arg prints help and quits
+    return args;
+  }
 
   if (argv[2] === "e") {
     args.editRemindFile = true;
@@ -163,6 +168,11 @@ getRemindFile(function(err, filepath) {
   const args = parseArgs();
   if (!args) {
     throw "no args man wth";
+  }
+
+  if (args.printHelp) {
+    console.log("a to print all, e to edit the remind file, and d for next days");
+    return;
   }
 
   if (args.editRemindFile) {
