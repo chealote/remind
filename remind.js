@@ -80,6 +80,11 @@ function parseDateFromNumbers(date) {
   }
 
   const parsedDate = new Date(date);
+  // valid date https://stackoverflow.com/questions/1353684/detecting-an-invalid-date-date-instance-in-javascript
+  if (!(parsedDate instanceof Date) || isNaN(parsedDate)) {
+    // date in this case would be "Invalid date", should throw something else? or set errno like a real programmer?
+    throw date;
+  }
 
   if (date.match(reValidMonthday)) {
     parsedDate.setYear(new Date().getUTCFullYear());
@@ -110,11 +115,15 @@ function getCurrentEventsFromFile(contents, cb) {
     }
     const date = line.split(separator)[0].replace(/^\s+|\s+$/, "");
     const description = line.split(separator)[1].replace(/^\s+|\s+$/, "");
-    const validDates = parseValidDates(date);
-    if (!validDates || validDates.length === 0) {
-      continue;
+    try {
+      const validDates = parseValidDates(date);
+      if (!validDates || validDates.length === 0) {
+        continue;
+      }
+      validDates.map(date => currentEvents.push({description, date: date}));
+    } catch (err) {
+      console.error(`error parsing date '${date}': ${err}`);
     }
-    validDates.map(date => currentEvents.push({description, date: date}));
   }
 
   const sortedEvents = currentEvents.sort(e => {
@@ -152,7 +161,8 @@ function parseArgs() {
   if (argv[2] === "d") {
     const days = Number(argv[3]);
     if (isNaN(days)) {
-      throw "next argument is NaN";
+      args.printHelp = true;
+      return args;
     }
     args.daysInTheFuture = days;
   }
@@ -209,7 +219,7 @@ getRemindFile(function(err, filepath) {
       const upto = new Date();
       upto.setDate(now.getDate()+args.daysInTheFuture);
 
-      console.log("today:", printFormatDate(now));
+      console.log("FROM:", printFormatDate(now), "TO:", printFormatDate(upto));
       for (const ev of events) {
         if (!args.printAll && (ev.date < now || upto < ev.date)) {
           continue;
